@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Travian automation
 // @namespace    danielv
-// @version      1.0
+// @version      1.1
 // @description  Pls no tell admins
 // @author       You
 // @match        https://ts4.x1.international.travian.com/*
@@ -12,22 +12,52 @@
 (async function () {
     'use strict';
     await sleep(2)
-    try {
-        periodicScrapes()
-        await sleep(1)
-        manager()
-    } catch (e) {
-        console.error(e)
-        localStorage.error = e.toString()
+    if (document.location.pathname == "/") {
+        // We are on the login page
+        let username = document.querySelector("div.innerLoginBox > form > table > tbody > tr.account > td:nth-child(2) > input")
+        let password = document.querySelector("div.innerLoginBox > form > table > tbody > tr.pass > td:nth-child(2) > input")
+        let loginButton = document.querySelector("#s1")
+
+        let usernameValue = localStorage.getItem("username")
+        let passwordValue = localStorage.getItem("password")
+
+        if (usernameValue !== null && passwordValue !== null) {
+            username.value = usernameValue
+            password.value = passwordValue
+            loginButton.click()
+        } else {
+            console.log("No username and password found")
+            console.log("Please set them in localStorage.username and localStorage.password")
+        }
+    } else {
+        try {
+            periodicScrapes()
+            await sleep(1)
+            manager()
+        } catch (e) {
+            console.error(e)
+            localStorage.error = e.toString()
+        }
+        setInterval(periodicScrapes, 3000)
+        setInterval(manager, 60 * 1000)
+        setTimeout(refresh, 60 * 60 * 1000)
     }
-    setInterval(periodicScrapes, 3000)
-    setInterval(manager, 60 * 1000)
 })();
 
 function periodicScrapes() {
     scrapeResources()
     scrapeBuildList()
     scrapeBuildings()
+}
+
+function refresh() {
+    console.log("Refreshing")
+    document.location.reload()
+}
+
+function fullScrape() {
+    // Shouldn't be triggered often. Navigate through the interface to scrape information
+
 }
 
 function manager() {
@@ -60,9 +90,10 @@ function constructionManager() {
             let priority_B = production.findIndex(x => x.name === b.type)
             return priority_A - priority_B
         })
+        console.log(resources)
+        resources = resources
             .filter(resource => resource.ready_to_upgrade)
             .filter(resource => resource.upgrading === false)
-        console.log(resources)
         // Upgrade the first item in the list
         if (resources.length > 0) {
             upgradeResource(resources[0])
@@ -83,7 +114,7 @@ function upgradeResource(resource) {
     if (context !== "build") {
         console.log("Opening build page")
         let resources = Array.from(document.querySelectorAll("#resourceFieldContainer > .level.colorLayer"))
-        let button = resources.find(x => x.href.includes(resource.id))
+        let button = resources.find(x => x.href.split("=")[1].includes(resource.id))
         button.click()
         return
     }
@@ -111,7 +142,7 @@ function getResources() {
             amount: window.resources.production.l3
         }, {
             name: "wheat",
-            amount: window.resources.production.l4
+            amount: window.resources.production.l4 * 2
         }],
         storage: [{
             name: "lumber",
